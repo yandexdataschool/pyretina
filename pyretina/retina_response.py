@@ -1,5 +1,7 @@
 import numpy as np
 
+from geometry import *
+
 def load_events(path):
   data = np.genfromtxt(path, delimiter=",", skip_header=1)
 
@@ -19,22 +21,9 @@ def retina_response_n(event, n, sigma):
   projections[:, 2] = scalar * n[:, 2]
 
   projections = event - projections
-
   deltas = np.sum(projections * projections, axis=1)
 
   return np.sum(np.exp(-deltas / (sigma * sigma)))
-
-def to_cartesian(theta, phi):
-  return np.array([[
-    np.sin(theta) * np.cos(phi),
-    np.sin(theta) * np.sin(phi),
-    np.cos(theta)
-  ]])
-
-def to_spherical(ns):
-  theta = np.arccos(ns[:, 2])
-  phi = np.arctan2(ns[:, 1], ns[:, 0])
-  return theta, phi
 
 def retina_spherical(event, theta, phi, sigma):
   n = to_cartesian(theta, phi)
