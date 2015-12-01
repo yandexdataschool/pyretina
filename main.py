@@ -171,4 +171,66 @@ def main2():
 
     plot_retina_results(predicted, params, thetas, phis, response, max_angle).show()
 
-main2()
+from pyretina.retina_response import *
+
+event, params, ns = simulation.particles(particles_n, np.arange(0, 18) + 2, [-0.1, 0.1], [-0.1, 0.1],
+                                             trace_probability=0.75, trace_noise=0.01, detector_noise_rate=0.0)
+
+thetas, phis, response = retina_grid(event, [-0.1, 0.1], bins, [-0.1, 0.1], bins, sigma=0.15)
+
+m = np.where(maxima(response))
+predicted = np.vstack([ thetas[m], phis[m] ]).T
+
+from scipy.optimize import minimize
+
+
+r = lambda sp: -retina_spherical(event, sp.reshape((1, 2)), 0.15)
+jac = lambda sp: -retina_response_jac(event, sp.reshape((1, 2)), 0.15)
+
+jac_theta = lambda t, p: -retina_response_jac(event, np.array([[t, p]]), 0.15)[0]
+jac_phi = lambda t, p: -retina_response_jac(event, np.array([[t, p]]), 0.15)[1]
+
+def jac_n(t, p):
+  j = -retina_response_jac(event, np.array([[t, p]]), 0.15)
+  return np.sum(j * j)
+
+p0 = np.array([[0.0, 0.0]])
+path = list(p0)
+track = minimize(r, np.array([0.0, 0.0]), jac=jac, method="Newton-CG", callback=lambda p: path.append(p), options={'disp': True, 'ftol' : 0.01})
+path.append(track.x)
+
+print path
+
+path2 = list(p0)
+track = minimize(r, np.array([0.0, 0.0]), method="CG", callback=lambda p: path2.append(p), options={'disp': True, 'ftol' : 0.01})
+path2.append(track.x)
+
+print path2
+
+plt.figure()
+plt.contourf(thetas, phis, response, 20, cmap=cm.gist_gray)
+plt.colorbar()
+plt.scatter(predicted[:, 0], predicted[:, 1], marker="+", color="green")
+plt.plot([ p[0] for p in path ], [ p[1] for p in path ], color="blue")
+plt.plot([ p[0] for p in path2 ], [ p[1] for p in path2 ], color="red")
+plt.title("R")
+
+# plt.figure()
+# plt.contourf(thetas, phis, np.vectorize(jac_theta)(thetas, phis), 20, cmap=cm.gist_gray)
+# plt.colorbar()
+# plt.title("dR / d theta")
+#
+# plt.figure()
+# plt.contourf(thetas, phis, np.vectorize(jac_phi)(thetas, phis), 20, cmap=cm.gist_gray)
+# plt.colorbar()
+# plt.title("dR / d phi")
+
+
+plt.figure()
+plt.contourf(thetas, phis, np.vectorize(jac_n)(thetas, phis), 20, cmap=cm.gist_gray)
+plt.colorbar()
+plt.scatter(predicted[:, 0], predicted[:, 1], marker="+", color="green")
+plt.plot([ p[0] for p in path ], [ p[1] for p in path ])
+plt.title("(dR / d phi)^2 + (dR / d theta)^2")
+
+plt.show()

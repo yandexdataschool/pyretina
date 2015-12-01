@@ -1,23 +1,18 @@
 import numpy as np
 
+from geometry import *
+
 def particles(n_particles, detector_layers,
-              theta_limits,
+              theta_limits, phi_limits,
               trace_probability,
               trace_noise,
               detector_noise_rate):
-
-  phi_limits = np.array([-np.pi, np.pi])
-
   particles_params = np.random.uniform(0.0, 1.0, size=(n_particles, 2))
 
   particles_params[:, 0] = particles_params[:, 0] * (theta_limits[1] - theta_limits[0]) + theta_limits[0]
   particles_params[:, 1] = particles_params[:, 1] * (phi_limits[1] - phi_limits[0]) + phi_limits[0]
 
-  particle_ns = np.ndarray(shape=(n_particles, 3), dtype="double")
-
-  particle_ns[:, 0] = np.sin(particles_params[:, 0]) * np.cos(particles_params[:, 1])
-  particle_ns[:, 1] = np.sin(particles_params[:, 0]) * np.sin(particles_params[:, 1])
-  particle_ns[:, 2] = np.cos(particles_params[:, 0])
+  particle_ns = to_cartesian(particles_params)
 
   n_layers = detector_layers.shape[0]
   true_intercepts = np.ndarray(shape=(n_particles, n_layers, 3))

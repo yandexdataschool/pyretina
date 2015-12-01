@@ -2,9 +2,10 @@ import numpy as np
 
 from evaluate import binary_metrics
 
-def plot_retina_results(predicted, test, thetas, phis, response, max_angle):
-  import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+from matplotlib.pyplot import cm
 
+def plot_retina_results(predicted, test, thetas, phis, response, max_angle):
   m, predicted_mapping, test_mapping = binary_metrics(predicted, test, max_angle=max_angle)
   recognized = predicted_mapping == 1
   test_recognized = test_mapping == 1
@@ -28,7 +29,7 @@ def plot_retina_results(predicted, test, thetas, phis, response, max_angle):
   plt.scatter(test[unrecognized, 0], test[unrecognized, 1], color="red", marker="o",
               label="Unrecognized (%d)" % np.sum(unrecognized), s=80)
 
-  plt.legend()
+  #plt.legend()
   return plt
 
 def plot_event_mayavi(event, tracks = None):
