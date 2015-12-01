@@ -3,8 +3,11 @@ from pyretina import simulation
 from pyretina import *
 
 import numpy as np
-from matplotlib import pyplot as plt
-import matplotlib.cm as cm
+
+from pyretina.plot3d import *
+
+import matplotlib.pyplot as plt
+import plotly.plotly as py
 
 from pyretina.evaluate import binary_metrics
 from pyretina.optimize.grid_search import maxima
@@ -16,34 +19,7 @@ theta_step = (theta_limits[0] - theta_limits[1]) / bins
 theta_generation_limits = [theta_limits[0] + 2 * theta_step, theta_limits[1] - 2 * theta_step]
 phi_limits = [-np.pi, np.pi]
 
-particles_n = 50
-
-def plot_retina_results(predicted, test, thetas, phis, response, max_angle):
-  m, predicted_mapping, test_mapping = binary_metrics(predicted, test, max_angle=max_angle)
-  recognized = predicted_mapping == 1
-  test_recognized = test_mapping == 1
-  ghost = predicted_mapping == 0
-  unrecognized = test_mapping == 0
-
-  plt.figure()
-  plt.contourf(thetas, phis, response, 20, cmap=cm.gist_gray)
-  plt.colorbar()
-
-  plt.scatter(predicted[recognized, 0], predicted[recognized, 1], color="green", marker="+",
-              label="Recognized (%d)" % np.sum(test_recognized), s=80)
-
-  plt.scatter(test[test_recognized, 0], test[test_recognized, 1], color="green", marker="o",
-              s=40)
-
-
-  plt.scatter(predicted[ghost, 0], predicted[ghost, 1], color="red", marker="x",
-              label="Ghost (%d)" % np.sum(ghost), s=80)
-
-  plt.scatter(test[unrecognized, 0], test[unrecognized, 1], color="red", marker="o",
-              label="Unrecognized (%d)" % np.sum(unrecognized), s=80)
-
-  plt.legend()
-  return plt
+particles_n = 20
 
 
 def precision_recall(n, **kwargs):
@@ -139,10 +115,18 @@ def plot_event(event, track_ns=None):
   #ax.set_ylim([-150, 150])
   #ax.set_zlim([-150, 150])
 
+import plotly.plotly as py
+from plotly.graph_objs import *
+import plotly.tools as tls
+
+
 def main2():
-  for _ in range(10):
-    event, params, ns = simulation.particles(particles_n, np.arange(0, 20), theta_generation_limits,
-                                             trace_probability=0.75, trace_noise=0.05, detector_noise_rate=0.0)
+
+  py.sign_in('carlos-castaneda', 'xno9347pjk')
+
+  for i in range(10):
+    event, params, ns = simulation.particles(particles_n, np.arange(0, 18) + 2, theta_generation_limits,
+                                             trace_probability=0.75, trace_noise=0.01, detector_noise_rate=0.0)
 
     #from pyretina.plot3d import plot_event
 
@@ -150,7 +134,7 @@ def main2():
     m = np.where(maxima(response))
     predicted = np.vstack([ thetas[m], phis[m] ]).T
 
-    max_angle = 8 * spherical_angle(np.array([0.0, 0.0]), np.array([
+    max_angle = 4 * spherical_angle(np.array([0.0, 0.0]), np.array([
       (theta_limits[1] - theta_limits[0]) / bins, (phi_limits[1] - phi_limits[0]) / bins
     ]))
 
@@ -166,9 +150,21 @@ def main2():
 
     print m
 
+    fig = plot_event_plotly(event, ns * 20, 20 * to_cartesian_array(predicted[ghost]))
+    py.plot(fig)
+
     plt.figure()
     plt.scatter(thetas[m[0][ghost], m[1][ghost]], response[m[0][ghost], m[1][ghost]], marker="x", color="red")
     plt.scatter(thetas[m[0][recognized], m[1][recognized]], response[m[0][recognized], m[1][recognized]], marker="+", color="green")
+    plt.plot()
+
+    plt.figure()
+    wsig = response[m[0][recognized], m[1][recognized]]
+    plt.hist(thetas[m[0][recognized], m[1][recognized]],weights= wsig/np.sum(wsig), color="green")
+    plt.plot()
+    plt.figure()
+    wbkg = response[m[0][ghost], m[1][ghost]]
+    plt.hist(thetas[m[0][ghost], m[1][ghost]],weights= wbkg /np.sum(wbkg), color="red")
     plt.plot()
 
     plot_event(event)

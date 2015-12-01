@@ -1,5 +1,13 @@
 import numpy as np
 
+def to_cartesian_array(sps):
+  n = np.ndarray(shape=(sps.shape[0], 3))
+
+  n[:, 0] = np.sin(sps[:, 0]) * np.cos(sps[:, 1])
+  n[:, 1] = np.sin(sps[:, 0]) * np.sin(sps[:, 1])
+  n[:, 2] = np.cos(sps[:, 0])
+  return n
+
 def to_cartesian_(spherical_p):
   return to_cartesian(spherical_p[0], spherical_p[1])
 
