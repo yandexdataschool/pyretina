@@ -1,7 +1,5 @@
 import numpy as np
 
-from ..retina_response import retina_grid
-
 def maxima(response):
   def shifted(m, delta):
     res = m
@@ -25,10 +23,10 @@ def maxima(response):
 
   return m
 
-def grid_search(event, theta_limits, theta_bins, phi_limits, phi_bins, sigma):
-  thetas, phis, response = retina_grid(event, theta_limits, theta_bins, phi_limits, phi_bins, sigma)
+def grid_search(event):
+  thetas, phis, response = event.get_grid()
 
   m = maxima(response)
   mis = np.where(m)
 
-  return m, np.where(m), thetas[mis], phis[mis]
+  return np.hstack([thetas[mis], phis[mis]])

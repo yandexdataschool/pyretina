@@ -1,12 +1,20 @@
 import numpy as np
 
 def to_cartesian(sps):
-  n = np.ndarray(shape=(sps.shape[0], 3))
-  n[:, 0] = np.sin(sps[:, 0])
-  n[:, 1] = np.cos(sps[:, 0]) * np.sin(sps[:, 1])
-  n[:, 2] = np.cos(sps[:, 0]) * np.cos(sps[:, 1])
+  if len(sps.shape) == 1:
+    n = np.ndarray(shape=(3,))
+    n[0] = np.sin(sps[0])
+    n[1] = np.cos(sps[0]) * np.sin(sps[1])
+    n[2] = np.cos(sps[0]) * np.cos(sps[1])
 
-  return n
+    return n
+  else:
+    n = np.ndarray(shape=(sps.shape[0], 3))
+    n[:, 0] = np.sin(sps[:, 0])
+    n[:, 1] = np.cos(sps[:, 0]) * np.sin(sps[:, 1])
+    n[:, 2] = np.cos(sps[:, 0]) * np.cos(sps[:, 1])
+
+    return n
 
 def to_spherical(ns):
   sps = np.ndarray(shape=( ns.shape[0], 2))

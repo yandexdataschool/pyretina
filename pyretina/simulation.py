@@ -1,12 +1,32 @@
 import numpy as np
 
 from geometry import *
+from retina_event import RetinaEvent
 
-def particles(n_particles, detector_layers,
-              theta_limits, phi_limits,
-              trace_probability,
-              trace_noise,
-              detector_noise_rate):
+def __wrap_event(event, particle_params,
+                 detector_layers,
+                 theta_limits, phi_limits,
+                 trace_probability,
+                 detector_noise_rate):
+  pass
+
+def make_dataset(n_events, out_path,
+                 n_particles, detector_layers,
+                 theta_limits, phi_limits,
+                 trace_probability,
+                 trace_noise,
+                 detector_noise_rate):
+  pass
+
+
+def linear(n_particles, detector_layers,
+           theta_limits, phi_limits,
+           trace_probability,
+           trace_noise,
+           detector_noise_rate,
+           sigma=0.05,
+           theta_bins = 250,
+           phi_bins = 250):
   particles_params = np.random.uniform(0.0, 1.0, size=(n_particles, 2))
 
   particles_params[:, 0] = particles_params[:, 0] * (theta_limits[1] - theta_limits[0]) + theta_limits[0]
@@ -45,5 +65,8 @@ def particles(n_particles, detector_layers,
     noise[2] = detector_layers[noisy_layer]
     intercepts.append(noise)
 
-  return np.vstack(intercepts), particles_params, particle_ns
+  retina_event = RetinaEvent(np.vstack(intercepts), particles_params, sigma,
+                             theta_limits, theta_bins, phi_limits, phi_bins)
+
+  return retina_event
 

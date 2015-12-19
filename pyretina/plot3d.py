@@ -5,8 +5,11 @@ from evaluate import binary_metrics
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import cm
 
-def plot_retina_results(predicted, test, thetas, phis, response, max_angle):
-  m, predicted_mapping, test_mapping = binary_metrics(predicted, test, max_angle=max_angle)
+def plot_retina_results(predicted, event, max_angle):
+  test = event.tracks
+  thetas, phis, response = event.get_grid()
+
+  m, predicted_mapping, test_mapping = binary_metrics(predicted, event, max_angle=max_angle)
   recognized = predicted_mapping == 1
   test_recognized = test_mapping == 1
   ghost = predicted_mapping == 0
