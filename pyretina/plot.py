@@ -5,17 +5,27 @@ from evaluate import binary_metrics
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import cm
 
-def plot_retina_results(predicted, event, max_angle):
-  test = event.tracks
+def plot_retina_results(predicted, event, max_angle, search_traces = None, against = 'grid_search'):
   thetas, phis, response = event.get_grid()
 
-  m, predicted_mapping, test_mapping = binary_metrics(predicted, event, max_angle=max_angle)
+  m, test, predicted_mapping, test_mapping = binary_metrics(predicted, event, max_angle=max_angle, against = against)
   recognized = predicted_mapping == 1
   test_recognized = test_mapping == 1
   ghost = predicted_mapping == 0
   unrecognized = test_mapping == 0
 
-  plt.figure()
+  print "predicted", predicted.shape
+  print "test", test.shape
+
+  print "predicted mapping", predicted_mapping.shape
+  print "test mapping", test_mapping.shape
+
+  print recognized.shape
+  print test_recognized.shape
+  print ghost.shape
+  print unrecognized.shape
+
+  plt.figure(figsize=(48, 48))
   plt.contourf(thetas, phis, response, 20, cmap=cm.gist_gray)
   plt.colorbar()
 
@@ -32,7 +42,14 @@ def plot_retina_results(predicted, event, max_angle):
   plt.scatter(test[unrecognized, 0], test[unrecognized, 1], color="red", marker="o",
               label="Unrecognized (%d)" % np.sum(unrecognized), s=80)
 
-  #plt.legend()
+  if search_traces is not None:
+    for trace in search_traces:
+      xs = [ p[0] for p in trace ]
+      ys = [ p[1] for p in trace ]
+
+      plt.plot(xs, ys, color="blue")
+
+  plt.legend()
   return plt
 
 def plot_event_mayavi(event, tracks = None):
