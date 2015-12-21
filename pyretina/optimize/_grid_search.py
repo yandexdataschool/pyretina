@@ -29,4 +29,4 @@ def grid_search(event):
   m = maxima(response)
   mis = np.where(m)
 
-  return np.hstack([thetas[mis], phis[mis]])
+  return np.vstack([thetas[mis], phis[mis]]).T

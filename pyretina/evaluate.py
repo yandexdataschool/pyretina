@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.neighbors import BallTree, DistanceMetric
 
 from geometry import *
+from optimize import grid_search
 
 def mean_distance_to_closest(predicted, event):
   angle = DistanceMetric.get_metric('pyfunc', func=spherical_angle)
@@ -40,11 +41,8 @@ def precision_recall(retina_events, max_angle_scale = 4, **kwargs):
 
   return precision, recall
 
-def binary_metrics(predicted, event, max_angle=1.0e-2):
+def __bin_metrics(predicted, test, max_angle = 1.0e-2):
   angle = DistanceMetric.get_metric('pyfunc', func=spherical_angle)
-
-  test = event.tracks
-
   d = angle.pairwise(predicted, test)
 
   # Each true sample maps to closest
@@ -57,11 +55,33 @@ def binary_metrics(predicted, event, max_angle=1.0e-2):
   for i in xrange(predicted.shape[0]):
     predicted_mapping[i] = 1 if np.any(d[i, :] < max_angle) else 0
 
+  fn = float(np.sum(test_mapping == 0))
+  fp = float(np.sum(predicted_mapping == 0))
+
+  tp = float(np.sum(test_mapping == 1))
+
+  return tp, fp, fn, predicted_mapping, test_mapping
+
+def __against(event, against = 'true'):
+  if against == 'true':
+    test = event.tracks
+  elif against == 'grid_search':
+    test = grid_search(event)
+  else:
+    test = against
+
+  return test
+
+def binary_metrics(predicted, event, against = 'true', max_angle = 1.0e-2):
   metric_dict = dict()
+  test = __against(event, against)
+  tp, fp, fn, predicted_mapping, test_mapping = __bin_metrics(predicted, test, max_angle)
 
-  metric_dict['fn'] = float(np.sum(test_mapping == 0))
-  metric_dict['fp'] = float(np.sum(predicted_mapping == 0))
+  metric_dict['fn'] = fn
+  metric_dict['fp'] = fp
+  metric_dict['tp'] = tp
 
-  metric_dict['tp'] = float(np.sum(test_mapping == 1))
+  metric_dict['precision'] = tp / (fp + tp)
+  metric_dict['recall'] = tp / (tp + fn)
 
-  return metric_dict, predicted_mapping, test_mapping
+  return metric_dict, test, predicted_mapping, test_mapping

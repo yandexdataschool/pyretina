@@ -53,8 +53,8 @@ linear_retina_response = lambda params: __linear_retina_response(params[0], para
 neg_linear_retina_response = lambda params: -__linear_retina_response(params[0], params[1])
 
 __linear_retina_response_jac = theano.function([__theta, __phi], theano.gradient.jacobian(__r, [__theta, __phi]))
-linear_retina_response_jac = lambda params: __linear_retina_response_jac(params[0], params[1])
-neg_linear_retina_response_jac = lambda params: -__linear_retina_response_jac(params[0], params[1])
+linear_retina_response_jac = lambda params: np.array(__linear_retina_response_jac(params[0], params[1]))
+neg_linear_retina_response_jac = lambda params: -np.array(__linear_retina_response_jac(params[0], params[1]))
 
 __second_derivatives = [ [theano.function([__theta, __phi], d) for d in dd] for dd in __hessian(__r, [__theta, __phi])]
 

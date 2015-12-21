@@ -33,6 +33,9 @@ def multi_start(event, max_evaluations = 1000, method ='CG', solver_options = No
     callback = PathCallback()
     callback(p0)
 
+    if solver_options is None:
+      solver_options = dict()
+
     run_options = solver_options.copy()
     run_options['maxiter'] = evaluations_left
 
@@ -42,19 +45,18 @@ def multi_start(event, max_evaluations = 1000, method ='CG', solver_options = No
       method = method,
       jac = r_jac,
       hess = r_hess,
-      options = solver_options
+      options = solver_options,
+      callback = callback
     )
 
-    if result.success:
+    evaluations_left -= result.nfev
+    evaluations_left -= result.njev
+    evaluations_left -= result.nhev
+
+    if evaluations_left >= 0:
       results.append(result.x)
       traces.append(callback.get_trace())
 
-      evaluations_left -= result.nfev
-      evaluations_left -= result.njev
-      evaluations_left -= result.nhev
-    else:
-      raise Exception(str(result))
-
-  return np.array(results), traces
+  return np.vstack(results), traces
 
 

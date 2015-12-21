@@ -28,21 +28,17 @@ if __name__ == "__main__":
     "phi_bins": bins
   }
 
-  args, dataset = simulation.make_dataset(1000, generation_params, n_jobs = 8)
-  print type(dataset)
-  print len(dataset)
-  print args
-
-  re = simulation.linear(**generation_params)
-
-  set_event(re.event)
-  set_sigma(0.05)
-
+  args, dataset = simulation.make_dataset(1000, generation_params, n_jobs = 8)  re = simulation.linear(**generation_params)
 
   from pyretina.optimize import multi_start
 
-  predicted, traces = multi_start(re)
+  solver = "Newton-CG"
+  solver_options = {
+    "xtol" : 1.0e-4
+  }
 
-  #from pyretina.plot3d import plot_retina_results
+  predicted, traces = multi_start(re, max_evaluations=2500, method = solver, solver_options = solver_options)
 
-  #plot_retina_results(predicted, re, 1.0e-2).show()
+  from pyretina.plot import plot_retina_results
+
+  plot_retina_results(predicted, re, 1.0e-3, search_traces=traces).savefig("multistart.png", dpi=420)
