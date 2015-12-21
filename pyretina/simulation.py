@@ -3,21 +3,48 @@ import numpy as np
 from geometry import *
 from retina_event import RetinaEvent
 
-def __wrap_event(event, particle_params,
-                 detector_layers,
-                 theta_limits, phi_limits,
-                 trace_probability,
-                 detector_noise_rate):
-  pass
+__PICKLE_PROTOCOL = 2
 
-def make_dataset(n_events, out_path,
-                 n_particles, detector_layers,
-                 theta_limits, phi_limits,
-                 trace_probability,
-                 trace_noise,
-                 detector_noise_rate):
-  pass
+class __Gen:
+  """
+  Since pickle isn't able to serialize lambdas...
+  let's define our own function...
+  """
+  def __init__(self, args):
+    self.args = args
 
+  def __call__(self, *_):
+    event = linear(**self.args)
+    event.make_grid()
+    return event
+
+def make_dataset(size, simulation_args, outfile = "simulation-data.pkl", n_jobs = 4, strict = False):
+  from joblib import Parallel, delayed, dump
+  import os
+
+  if os.path.exists(outfile) and not strict:
+    print "File exists, skipping generation"
+    return load_dataset(outfile)
+  elif strict:
+    raise Exception("File already exists, generation will override it, but strict flag is set.")
+
+
+  gen = __Gen(simulation_args)
+
+  events = Parallel(n_jobs = n_jobs)(delayed(gen)(i) for i in xrange(size))
+
+  print type(events)
+
+  dump((simulation_args, events), outfile, compress=True)
+
+  return simulation_args, events
+
+def load_dataset(infile = "simulation-data.pkl"):
+  from joblib import load
+
+  (simulation_args, events) = load(infile)
+
+  return simulation_args, events
 
 def linear(n_particles, detector_layers,
            theta_limits, phi_limits,
@@ -69,4 +96,3 @@ def linear(n_particles, detector_layers,
                              theta_limits, theta_bins, phi_limits, phi_bins)
 
   return retina_event
-

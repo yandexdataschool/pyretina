@@ -16,6 +16,7 @@ class RetinaEvent:
   phi_step = 0.0
 
   grid = None
+
   thetas = None
   phis = None
 

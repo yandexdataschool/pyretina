@@ -61,3 +61,5 @@ target/
 *.png
 
 .ipynb_checkpoints
+
+*.pkl
