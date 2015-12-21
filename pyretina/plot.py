@@ -1,11 +1,11 @@
 import numpy as np
 
-from evaluate import binary_metrics
+from evaluate import binary_metrics, precision_recall
 
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import cm
 
-def plot_retina_results(predicted, event, max_angle, search_traces = None, against = 'grid_search'):
+def plot_retina_results(predicted, event, max_angle, search_traces = None, against = 'true'):
   thetas, phis, response = event.get_grid()
 
   m, test, predicted_mapping, test_mapping = binary_metrics(predicted, event, max_angle=max_angle, against = against)
@@ -13,17 +13,6 @@ def plot_retina_results(predicted, event, max_angle, search_traces = None, again
   test_recognized = test_mapping == 1
   ghost = predicted_mapping == 0
   unrecognized = test_mapping == 0
-
-  print "predicted", predicted.shape
-  print "test", test.shape
-
-  print "predicted mapping", predicted_mapping.shape
-  print "test mapping", test_mapping.shape
-
-  print recognized.shape
-  print test_recognized.shape
-  print ghost.shape
-  print unrecognized.shape
 
   plt.figure(figsize=(48, 48))
   plt.contourf(thetas, phis, response, 20, cmap=cm.gist_gray)
@@ -50,6 +39,18 @@ def plot_retina_results(predicted, event, max_angle, search_traces = None, again
       plt.plot(xs, ys, color="blue")
 
   plt.legend()
+  return plt
+
+def plot_precision_recall(predicted, event, against = 'true', max_angle = 1.0e-2):
+  _, precision, recall = precision_recall(predicted, event, against, max_angle)
+
+  plt.figure()
+  plt.ylim([0.0, 1.05])
+  plt.xlim([0.0, 1.05])
+  plt.plot(recall, precision)
+  plt.xlabel("Recall")
+  plt.ylabel("Precision")
+
   return plt
 
 def plot_event_mayavi(event, tracks = None):
