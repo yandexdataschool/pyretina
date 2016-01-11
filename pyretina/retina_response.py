@@ -32,7 +32,7 @@ def __hessian(cost, variables):
 __theta = T.dscalar("theta")
 __phi = T.dscalar("phi")
 
-### Normal vector
+### Normalized direction vector
 __n_x = T.sin(__theta)
 __n_y = T.cos(__theta) * T.sin(__phi)
 __n_z = T.cos(__theta) * T.cos(__phi)
@@ -47,6 +47,8 @@ __delta = [__scalar * n_i - e_i for (e_i, n_i) in zip(__event, _n)]
 __delta_square = reduce(T.add, [d_i * d_i for d_i in __delta])
 
 __r = T.sum(T.exp(-__delta_square / __sigma))
+
+
 
 __linear_retina_response = theano.function([__theta, __phi], __r)
 linear_retina_response = lambda params: __linear_retina_response(params[0], params[1])

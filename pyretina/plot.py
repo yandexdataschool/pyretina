@@ -15,7 +15,7 @@ def plot_retina_results(predicted, event, max_angle, search_traces = None, again
   unrecognized = test_mapping == 0
 
   plt.figure(figsize=(48, 48))
-  plt.contourf(thetas, phis, response, 20, cmap=cm.gist_gray)
+  plt.contourf(thetas, phis, response, 40, cmap=cm.gist_gray)
   plt.colorbar()
 
   plt.scatter(predicted[recognized, 0], predicted[recognized, 1], color="green", marker="+",
