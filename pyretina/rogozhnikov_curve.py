@@ -38,6 +38,15 @@ def log_sum_exp(A, axis=None):
   return B.dimshuffle([i for i in range(B.ndim) if
                        i % B.ndim not in axis])
 
+def __hessian(cost, variables):
+  hessians = []
+  for input1 in variables:
+    d_cost_d_input1 = T.grad(cost, input1)
+    hessians.append([
+      T.grad(d_cost_d_input1, input2) for input2 in variables
+    ])
+
+  return hessians
 
 def _unparams(params):
   cx = params[:2]
@@ -48,7 +57,8 @@ def _unparams(params):
   gamma = params[7]
   return cx, cy, c0x, c0y, z0, gamma
 
-_penalty = 0.01
+_penalty_c = 0.1
+_penalty_gamma = 0.1
 
 _cx = T.dvector()
 _cy = T.dvector()
@@ -74,7 +84,7 @@ _true_ys = theano.shared(np.zeros(shape=(1, )))
 
 _MSE = T.mean((_xs - _true_xs) ** 2 + (_ys - _true_ys) ** 2) / 2.0
 _penalize = lambda c: T.sum(c ** 2)
-_error = _MSE + _penalty * (_penalize(_cx) + _penalize(_cy))
+_error = _MSE + _penalty_c * (_penalize(_cx) + _penalize(_cy)) + _penalty_gamma * _penalize(_gamma)
 
 _error_jac = T.jacobian(_error, [_cx, _cy, _c0x, _c0y, _z0, _gamma])
 
@@ -92,6 +102,24 @@ _curve_y = theano.function([_cy, _c0y, _z0, _gamma], _ys)
 _default_x0 = np.array([-0.1, 0.3, 0.025, 0.05, 0, -200, 6000, 1.0e-2])
 
 class RogozhnikovCurve:
+  def __spline(self, x, y, z, spline_n=25):
+    from scipy import interpolate as spinter
+    z_grid = np.linspace(np.min(z), np.max(z), spline_n)
+    splixner = spinter.UnivariateSpline(z, x)(z_grid)
+    spliyner = spinter.UnivariateSpline(z, y)(z_grid)
+
+    return splixner, spliyner, z_grid
+
+  def __setup(self, x, y, z, spline=False, spline_n=25):
+    if spline:
+      x_, y_, z_ = self.__spline(x, y, z, spline_n)
+    else:
+      x_, y_, z_ = x, y, z
+
+    _true_xs.set_value(x_)
+    _true_ys.set_value(y_)
+    _true_zs.set_value(z_)
+
   def __init__(self, penalty, x0 = None):
     self.penalty = penalty
     self.error = None
@@ -101,22 +129,15 @@ class RogozhnikovCurve:
     else:
       self.params = x0.copy()
 
+  def mse(self, x, y, z, spline=False, spline_n=25):
+    self.__setup(x, y, z, spline, spline_n)
+    return _error_v, _error_jac_v
+
+
   def fit(self, x, y, z, spline=False, spline_n=25):
     import scipy.optimize as opt
-    from scipy import interpolate as spinter
 
-    if spline:
-      z_grid = np.linspace(np.min(z), np.max(z), spline_n)
-      splixner = spinter.UnivariateSpline(z, x)(z_grid)
-      spliyner = spinter.UnivariateSpline(z, y)(z_grid)
-
-      _true_xs.set_value(splixner)
-      _true_ys.set_value(spliyner)
-      _true_zs.set_value(z_grid)
-    else:
-      _true_xs.set_value(x)
-      _true_ys.set_value(y)
-      _true_zs.set_value(z)
+    self.__setup(x, y, z, spline, spline_n)
 
     sol = opt.minimize(_error_v, jac=_error_jac_v, method="BFGS", x0=self.params, options = { "gtol" : 1.0e1 })
 

@@ -1,7 +1,5 @@
 import numpy as np
 
-from pyretina.io import simulation
-
 if __name__ == "__main__":
   bins = 250
 
@@ -57,8 +55,7 @@ if __name__ == "__main__":
   recall_grid = np.zeros(shape=experiments)
 
   for i in range(experiments):
-    #re = simulation.linear(**generation_params)
-    re = from_csv.load_dataset("data/event_hits/00087731_0102519091.hits.csv",
+    re = from_csv.load_dataset("data/event_hits/00163875_0143139193.tracks.csv",
                                **load_params)
 
     predicted, traces = multi_start(re, max_evaluations=10000, method = solver, solver_options = solver_options)
@@ -80,10 +77,7 @@ if __name__ == "__main__":
     recall_grid[i] = bm_grid['recall']
 
     print precision[i], recall[i]
-    print "vs"
     print precision_grid[i], recall_grid[i]
-
-    raise Exception("Stop!")
 
   print "Precision", precision.mean(), precision.std()
   print "Recall", recall.mean(), recall.std()
