@@ -1,5 +1,5 @@
 from pyretina.optimize import multistart_until
-from pyretina.rogozhnikov_curve2 import RogozhnikovCurve2
+from pyretina.rogozhnikov_curve import RogozhnikovCurve
 import pandas as pd
 import numpy as np
 
@@ -27,7 +27,6 @@ bounds = np.array([
 def main():
   import sys
   import os
-
   paths = sys.argv[1:]
 
   errors = list()
@@ -42,15 +41,13 @@ def main():
 
         for ei in range(tx.shape[0]):
           print "Fitting %d-th track of %s" % (ei, path)
-          f, f_jac, f_hess = RogozhnikovCurve2(tx[ei, :], ty[ei, :], tz[ei, :], spline=True, spline_n=25).mse()
-          res = multistart_until(bounds, 2.0e+1, f, n_attempts=100, f_jac=f_jac,
-                                 method="BFGS", strict=False, solver_options={"maxiter" : 100})
+          rc = RogozhnikovCurve(tx[ei, :], ty[ei, :], tz[ei, :], spline=True, spline_n=25).fast_fit()
 
-          print "Error:", res.fun
-          print "Message", res.message
+          print "Error:", rc.error
+          print "Params", rc.params
 
-          errors.append(res.fun)
-          params.append(res.x)
+          errors.append(rc.error)
+          params.append(rc.params)
   finally:
     import matplotlib.pyplot as plt
 
