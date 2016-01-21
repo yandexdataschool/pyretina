@@ -1,243 +1,130 @@
-import theano
-import theano.tensor as T
-import numpy as np
-from sklearn.linear_model import LinearRegression
+from pyretina.utils.theanops import *
 
-### Stolen from pylearn2
-def log_sum_exp(A, axis=None):
-  """
-  A numerically stable expression for
-  `T.log(T.exp(A).sum(axis=axis))`
-  Parameters
-  ----------
-  A : theano.gof.Variable
-      A tensor we want to compute the log sum exp of
-  axis : int, optional
-      Axis along which to sum
-  log_A : deprecated
-      `A` used to be named `log_A`. We are removing the `log_A`
-      interface because there is no need for the input to be
-      the output of theano.tensor.log. The only change is the
-      renaming, i.e. the value of log_sum_exp(log_A=foo) has
-      not changed, and log_sum_exp(A=foo) is equivalent to
-      log_sum_exp(log_A=foo).
-  Returns
-  -------
-  log_sum_exp : theano.gof.Variable
-      The log sum exp of `A`
-  """
+import matplotlib.pyplot as plt
 
-  A_max = T.max(A, axis=axis, keepdims=True)
-  B = (
-    T.log(T.sum(T.exp(A - A_max), axis=axis, keepdims=True)) +
-    A_max
-  )
+theano.config.optimizer = 'fast_compile'
 
-  if type(axis) is int:
-    axis = [axis]
+_x = theano.shared(np.zeros((1,), dtype='double'), name='x')
+_true_y = theano.shared(np.zeros((1,), dtype='double'), name='true_y')
 
-  return B.dimshuffle([i for i in range(B.ndim) if
-                       i % B.ndim not in axis])
+_a = T.dscalar('a')
+_b = T.dscalar('b')
 
-def __hessian(cost, variables):
-  hessians = []
-  for input1 in variables:
-    d_cost_d_input1 = T.grad(cost, input1)
-    hessians.append([
-      T.grad(d_cost_d_input1, input2) for input2 in variables
-    ])
+_x0 = T.dscalar('x0')
+_y0 = T.dscalar('y0')
 
-  return hessians
+_gamma = T.dscalar('gamma')
 
-def _unparams(params):
-  cx = params[:2]
-  cy = params[2:4]
-  c0x = params[4]
-  c0y = params[5]
-  z0 = params[6]
-  gamma = params[7]
-  return cx, cy, c0x, c0y, z0, gamma
+_gamma_ = _gamma / 100.0
 
-def _inparams(cx, cy, c0x, c0y, z0, gamma):
-  params = np.ndarray(shape=(8, ), dtype=np.double)
+_x_c = _x - _x0
 
-  params[:2] = cx
-  params[2:4] = cy
-  params[4] = c0x
-  params[5] = c0y
-  params[6] = z0
-  params[7] = gamma
-  return params
+_y = _a * _x_c + _b * log1p_exp(_gamma_ * _x_c) / _gamma_ + _y0
 
-_penalty_c = 0.1
-_penalty_gamma = 0.1
+_y_f = theano.function([_a, _b, _x0, _y0, _gamma], _y)
 
-_cx = T.dvector()
-_cy = T.dvector()
+_MSE = T.mean((_true_y - _y) ** 2)
 
-_gamma = T.dscalar()
-_z0 = T.dscalar()
+_error = _MSE + _gamma_ ** 2
 
-_c0x = T.dscalar()
-_c0y = T.dscalar()
+_error_f = theano.function([_a, _b, _x0, _y0, _gamma], _error)
 
-_true_zs = theano.shared(np.zeros(shape=(1,)))
+_error_v = lambda p: _error_f(*p)
 
-_zc = _true_zs - _z0
+_error_jac = T.jacobian(_error, [_a, _b, _x0, _y0, _gamma])
 
-_sx = T.tensordot(_cx, _zc, axes=([], []))
-_xs = log_sum_exp(_sx * _gamma, axis=0) / _gamma + _c0x
+_error_jac_f = theano.function([_a, _b, _x0, _y0, _gamma], _error_jac)
 
-_sy = T.tensordot(_cy, _zc, axes=([], []))
-_ys = log_sum_exp(_sy * _gamma, axis=0) / _gamma + _c0y
+_error_jac_v = lambda p: np.hstack(_error_jac_f(*p))
 
-_true_xs = theano.shared(np.zeros(shape=(1, )))
-_true_ys = theano.shared(np.zeros(shape=(1, )))
+def _set(x_, y_):
+  _x.set_value(x_)
+  _true_y.set_value(y_)
 
-_MSE = T.mean((_xs - _true_xs) ** 2 + (_ys - _true_ys) ** 2) / 2.0
-_penalize = lambda c: T.sum(c ** 2)
-_error = _MSE + _penalty_c * (_penalize(_cx) + _penalize(_cy)) + _penalty_gamma * _penalize(_gamma)
 
-_error_jac = T.jacobian(_error, [_cx, _cy, _c0x, _c0y, _z0, _gamma])
+def _prefit(x, y, x0, y0, bend_x_r):
+  cut_before = x < x0 - bend_x_r
+  cut_after = x > x0 + bend_x_r
 
-_MSE_f = theano.function([_cx, _cy, _c0x, _c0y, _z0, _gamma], _MSE)
+  x_before = x[cut_before].reshape(-1, 1)
+  x_after = x[cut_after].reshape(-1, 1)
 
-_error_f = theano.function([_cx, _cy, _c0x, _c0y, _z0, _gamma], _error)
-_error_v = lambda params: _error_f(*_unparams(params))
+  y_before = y[cut_before]
+  y_after = y[cut_after]
 
-_error_partial_v = lambda cx, cy: lambda p: _error_f(cx, cy, p[0], p[1], p[2], p[3])
+  def fit(x_, y_):
+    if x_.shape[0] > 1 and y_.shape[0] > 1:
+      c, residuals, rank, s = np.linalg.lstsq(x_, y_)
+      return c[0], residuals
+    else:
+      err = np.sum(y_ ** 2)
+      return 0.0, err
 
-_error_jac_f = theano.function([_cx, _cy, _c0x, _c0y, _z0, _gamma], _error_jac)
-_error_jac_v = lambda params: np.hstack(_error_jac_f(*_unparams(params)))
+  c_before, error_before = fit(x_before - x0, y_before - y0)
+  c_after, error_after = fit(x_after - x0, y_after - y0)
 
-_error_jac_partial_v = lambda cx, cy: lambda p: np.hstack(_error_jac_f(cx, cy, p[0], p[1], p[2], p[3]))[4:]
+  error = error_before / np.sum(cut_before) + error_after / np.sum(cut_after)
 
-_curve_x = theano.function([_cx, _c0x, _z0, _gamma], _xs)
-_curve_y = theano.function([_cy, _c0y, _z0, _gamma], _ys)
-
-_default_x0 = np.array([-0.1, 0.3, 0.025, 0.05, 0, -200, 6000, 1.0e-2])
-
-lr = LinearRegression(fit_intercept=True)
-
-default_gamma = 1.0e-2
+  return np.array([c_before, c_after]), error
 
 class RogozhnikovCurve:
-  def __spline(self, spline_n=25):
-    from scipy import interpolate as spinter
+  def __init__(self, spline=30, bend_r=None, x0=None):
+    self.spline = spline
+    self.bend_r = bend_r
+    self.x0_guess = x0
 
-    z_grid = np.linspace(np.min(self.z), np.max(self.z), spline_n)
-    splixner = spinter.UnivariateSpline(self.z, self.x)(z_grid)
-    spliyner = spinter.UnivariateSpline(self.z, self.y)(z_grid)
+    self.a = None
+    self.b = None
+    self.x0 = None
+    self.y0 = None
+    self.gamma = None
+    self.sol = None
 
-    return splixner, spliyner, z_grid
+  def curve(self, x):
+    _x.set_value(x)
+    return _y_f(self.a, self.b, self.x0, self.y0, self.gamma)
 
-  def __setup(self, spline=False, spline_n=25):
-    if spline:
-      x_, y_, z_ = self.__spline(spline_n)
+  def fast_fit(self, x_, y_):
+    from scipy import optimize as opt
+    from scipy import interpolate
+
+    spline_y = interpolate.UnivariateSpline(x_, y_)
+
+    if type(self.spline) is int:
+      x = np.linspace(np.min(x_), np.max(x_), self.spline)
+      y = spline_y(x)
     else:
-      x_, y_, z_ = self.x, self.y, self.z
+      x = x_
+      y = y_
 
-    _true_xs.set_value(x_)
-    _true_ys.set_value(y_)
-    _true_zs.set_value(z_)
+    bend_r = self.bend_r or (np.max(x_) - np.min(x_)) / 8.0
 
-  def __init__(self, x, y, z, spline=False, spline_n=25, param_guess = None):
-    self.error = None
+    x0 = self.x0_guess
+    y0 = spline_y(x0)
+    c_guess = _prefit(x, y, x0, y0, bend_r)[0]
 
-    self.x = x
-    self.y = y
-    self.z = z
+    error = _error_v
+    jac = _error_jac_v
+    _set(x, y)
 
-    self.__setup(spline, spline_n)
+    gamma0 = 1.0
+    guess = np.array([c_guess[0], c_guess[1] - c_guess[0], x0, y0, gamma0])
 
-    self.params = param_guess
+    sol = opt.minimize(error, jac = jac,
+                       method="BFGS",
+                       x0=guess,
+                       options={ 'gtol' : 1.0e-3, 'maxiter' : 100 })
 
-  def mse(self, spline=False, spline_n=25):
-    self.__setup(spline, spline_n)
-    return _error_v, _error_jac_v
+    sol = opt.minimize(error,
+                       method = "Powell",
+                       x0 = sol.x,
+                       options={ 'xtol' : 1.0e-2 })
 
-  def prefit(self,
-             before_magnet_cut = 2700.0,
-             after_magnet_cut = 7500.0,
-             z0 = 5000.0):
-    """
-    Prefit return estimation of initial parameters by fitting 2 lines in areas z < before_magnet_cut and
-    z > after_magnet_cut.
-    :param x: data
-    :param y: data
-    :param z: data
-    :param before_magnet_cut:
-    :param after_magnet_cut:
-    :param z0: for c0x and c0y approximation
-    :return:
-    """
+    self.a, self.b, self.x0, self.y0, self.gamma = sol.x
 
-    x, y, z = self.x, self.y, self.z
+    self.sol = sol
 
-    bx = x[:2]
-    by = y[:2]
-    bz = z[:2]
-
-    ax = x[-2:]
-    ay = y[-2:]
-    az = z[-2:]
-
-    bcx = lr.fit(bz.reshape(-1, 1), bx).coef_[0]
-    c0x = lr.predict(np.array([[z0]]))
-
-    bcy = lr.fit(bz.reshape(-1, 1), by).coef_[0]
-    c0y = lr.predict(np.array([[z0]]))
-
-    acx = lr.fit(az.reshape(-1, 1), ax).coef_[0]
-    c0x += lr.predict(np.array([[z0]]))
-
-    acy = lr.fit(az.reshape(-1, 1), ay).coef_[0]
-    c0y += lr.predict(np.array([[z0]]))
-
-    c0x = c0x[0] / 2.0
-    c0y = c0y[0] / 2.0
-
-    cx = np.array([bcx, acx])
-    cy = np.array([bcy, acy])
-
-    return cx, cy, c0x, c0y, z0, default_gamma
-
-  def fit(self, spline=False, spline_n=25):
-    import scipy.optimize as opt
-
-    sol = opt.minimize(_error_v, jac=_error_jac_v, method="BFGS", x0=self.params, options = { "gtol" : 1.0e1 })
-
-    self.params = sol.x
-    self.error = _MSE_f(*_unparams(self.params))
     return self
 
-  def fast_fit(self,
-               before_magnet_cut = 2700.0,
-               after_magnet_cut = 7500.0,
-               z0 = 5000.0):
-    import scipy.optimize as opt
-
-    cx, cy, c0x, c0y, z0, gamma = self.prefit(before_magnet_cut, after_magnet_cut, z0)
-
-    p_error = _error_partial_v(cx, cy)
-    p_error_jac = _error_jac_partial_v(cx, cy)
-
-    sol = opt.minimize(p_error, jac=p_error_jac, method="BFGS", x0=np.array([c0x, c0y, z0, gamma]), options = { "gtol" : 1.0e-3 })
-    c0x, c0y, z0, gamma = sol.x
-
-    print "Preotpimization:", sol.fun
-
-    sol = opt.minimize(_error_v, jac=_error_jac_v, method="BFGS", x0=_inparams(cx, cy, c0x, c0y, z0, gamma))
-
-    print "After:", sol.fun
-
-    self.params = sol.x
-    self.error = _MSE_f(*_unparams(self.params))
-    return self
-
-  def curve(self):
-    def f(z):
-      _true_zs.set_value(z)
-      cx, cy, c0x, c0y, z0, gamma = _unparams(self.params)
-      return _curve_x(cx, c0x, z0, gamma), _curve_y(cy, c0y, z0, gamma)
-    return f
+  def asymptotes(self):
+    return self.a, self.b - self.a

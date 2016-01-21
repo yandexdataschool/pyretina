@@ -1,4 +1,3 @@
-from pyretina.optimize import multistart_until
 from pyretina.rogozhnikov_curve import RogozhnikovCurve
 import pandas as pd
 import numpy as np
@@ -25,38 +24,18 @@ bounds = np.array([
 ])
 
 def main():
-  import sys
-  import os
-  paths = sys.argv[1:]
+  import matplotlib.pyplot as plt
 
-  errors = list()
-  params = list()
+  for path in ['00163838_0067087057.tracks.csv']:#os.listdir("./data/MC"):
 
-  try:
-    for path in ['00163838_0067087057.tracks.csv']:#os.listdir("./data/MC"):
-        df = pd.DataFrame.from_csv("./data/MC/%s" % path)
-        tx = df[ [u'x%d' % i for i in range(11) ] ].values
-        ty = df[ [u'y%d' % i for i in range(11) ] ].values
-        tz = df[ [u'z%d' % i for i in range(11) ] ].values
+    df = pd.DataFrame.from_csv("./data/MC/%s" % path)
+    tx = df[ [u'x%d' % i for i in range(11) ] ].values
+    ty = df[ [u'y%d' % i for i in range(11) ] ].values
+    tz = df[ [u'z%d' % i for i in range(11) ] ].values
 
-        for ei in range(tx.shape[0]):
-          print "Fitting %d-th track of %s" % (ei, path)
-          rc = RogozhnikovCurve(tx[ei, :], ty[ei, :], tz[ei, :], spline=True, spline_n=25).fast_fit()
-
-          print "Error:", rc.error
-          print "Params", rc.params
-
-          errors.append(rc.error)
-          params.append(rc.params)
-  finally:
-    import matplotlib.pyplot as plt
-
-    plt.figure(figsize=(12, 8))
-    plt.hist(np.array(errors))
-    plt.savefig("r_fitting_errors.png")
-
-    np.savetxt("errors.csv", np.array(errors))
-    np.savetxt("params.csv", np.array(params))
+    for ei in range(tx.shape[0]):
+      rc = RogozhnikovCurve(spline=50, x0 = 5000, bend_r=3000.0).fast_fit(tz[ei], tx[ei])
+      print rc.sol.fun
 
 if __name__ == "__main__":
   main()

@@ -34,8 +34,6 @@ if __name__ == "__main__":
     "phi_bins": 250
   }
 
-  #args, dataset = simulation.make_dataset(1000, generation_params, n_jobs = 8)
-
   experiments = 100
   from pyretina.optimize import multi_start
 

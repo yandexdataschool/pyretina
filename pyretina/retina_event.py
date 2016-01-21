@@ -56,6 +56,7 @@ class RetinaEvent:
 
     self.theta_limits = theta_limits
     self.phi_limits = phi_limits
+
     self.theta_bins = theta_bins
     self.phi_bins = phi_bins
 
