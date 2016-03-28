@@ -1,26 +1,11 @@
 #!/usr/bin/python
 
 import numpy as np
+import pyretina.geometry
 
 class RetinaEvent:
   event = None
   tracks = None
-  sigma = None
-
-  theta_limits = None
-  theta_bins = 200
-  theta_step = 0.0
-
-  phi_limits = None
-  phi_bins = 200
-  phi_step = 0.0
-
-  grid = None
-
-  thetas = None
-  phis = None
-
-  optimization_trace = None
 
   def track_dim(self):
     return self.tracks.shape[1]
@@ -52,7 +37,11 @@ class RetinaEvent:
 
   def __init__(self, event, tracks, sigma, theta_limits, theta_bins, phi_limits, phi_bins):
     self.event = event
-    self.tracks = tracks
+    if tracks.shape[1] == 2:
+      self.tracks = tracks
+    elif tracks.shape[1] == 3:
+      self.tracks = pyretina.geometry.to_spherical(tracks)
+
 
     self.theta_limits = theta_limits
     self.phi_limits = phi_limits

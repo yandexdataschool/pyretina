@@ -18,8 +18,12 @@ def to_cartesian(sps):
 
 def to_spherical(ns):
   sps = np.ndarray(shape=( ns.shape[0], 2))
-  sps[:, 0] = np.arcsin(ns[:, 0])
-  sps[:, 1] = np.arctan2(ns[:, 1], ns[:, 2])
+
+  norm = np.sqrt(np.sum(ns ** 2, axis=1))
+  normed = ns / np.vstack([norm] * 3).T
+
+  sps[:, 0] = np.arcsin(normed[:, 0])
+  sps[:, 1] = np.arctan2(normed[:, 1], ns[:, 2])
   return sps
 
 def spherical_cos_angle(spherical_p1, spherical_p2):

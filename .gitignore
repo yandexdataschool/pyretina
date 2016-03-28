@@ -69,3 +69,5 @@ target/
 *.gz
 *.tgz
 *.tar.gz
+
+data/
