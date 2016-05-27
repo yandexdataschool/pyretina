@@ -126,18 +126,18 @@ def plot_event_plotly(event, tracks, unrecognized_tracks=None, filename="retina"
         )
   )
 
-  tracks_unrecognised_3d = go.Scatter3d (
-      x = with_return_to_origin(unrecognized_tracks[:, 2]),  # x coords
-      y = with_return_to_origin(unrecognized_tracks[:, 0]),  # y coords
-      z = with_return_to_origin(unrecognized_tracks[:, 1]),  # z coords
-      mode = 'lines',      # (!) draw lines between coords (as in Scatter)
-      line = dict(
-          color = "red",
-          width=2
-        )
-  )
+  # tracks_unrecognised_3d = go.Scatter3d (
+  #     x = with_return_to_origin(unrecognized_tracks[:, 2]),  # x coords
+  #     y = with_return_to_origin(unrecognized_tracks[:, 0]),  # y coords
+  #     z = with_return_to_origin(unrecognized_tracks[:, 1]),  # z coords
+  #     mode = 'lines',      # (!) draw lines between coords (as in Scatter)
+  #     line = dict(
+  #         color = "red",
+  #         width=2
+  #       )
+  # )
 
-  data=[hits_3d, tracks_3d, tracks_unrecognised_3d]
+  data=[hits_3d, tracks_3d]
 
   box = mininal_sq(event)
 
@@ -151,5 +151,6 @@ def plot_event_plotly(event, tracks, unrecognized_tracks=None, filename="retina"
   )
 
   fig = go.Figure(data=data, layout=layout)
+  py.plot(fig)
 
   return fig

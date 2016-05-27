@@ -3,7 +3,8 @@ from collections import namedtuple
 Event = namedtuple(
   "Event", [
     'hits',
-    'tracks'
+    'tracks',
+    'z0'
   ]
 )
 
@@ -41,42 +42,46 @@ MC = namedtuple(
   ]
 )
 
-def read_config(path = "config/mc.json"):
-  import json
-  with open(path, 'r') as f:
-    config = json.load(f)
-
+def from_config(config):
   velo_config = config['velo_geometry']
 
   velo = VELO(
-    layers = velo_config['layers'],
-    length = velo_config['length'],
-    inner_radius = velo_config['inner_radius'],
-    outer_radius = velo_config['outer_radius']
+    layers=velo_config['layers'],
+    length=velo_config['length'],
+    inner_radius=velo_config['inner_radius'],
+    outer_radius=velo_config['outer_radius']
   )
 
   scattering_config = config['scattering']
 
   scattering = Scattering(
-    number_of_particles = scattering_config['number_of_particles'],
-    pseudo_rapidity = scattering_config['pseudo_rapidity'],
-    primary_vertex = scattering_config['primary_vertex']
+    number_of_particles=scattering_config['number_of_particles'],
+    pseudo_rapidity=scattering_config['pseudo_rapidity'],
+    primary_vertex=scattering_config['primary_vertex']
   )
 
   interaction_config = config['interaction']
 
   interaction = Interaction(
-    min_hits_to_trace = interaction_config['min_hits_to_trace'],
-    reaction_probability = interaction_config['reaction_probability'],
-    hit_noise = interaction_config['hit_noise'],
-    detector_noise = interaction_config['detector_noise']
+    min_hits_to_trace=interaction_config['min_hits_to_trace'],
+    reaction_probability=interaction_config['reaction_probability'],
+    hit_noise=interaction_config['hit_noise'],
+    detector_noise=interaction_config['detector_noise']
   )
 
   return MC(
-    velo = velo,
-    scattering = scattering,
-    interaction = interaction
+    velo=velo,
+    scattering=scattering,
+    interaction=interaction
   )
+
+def read_config(path = "config/mc.json"):
+  import json
+  with open(path, 'r') as f:
+    config = json.load(f)
+
+  return from_config(config)
+
 
 def get_distribution(distribution_params):
   from scipy import stats

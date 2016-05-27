@@ -1,114 +1,99 @@
+import sys
+import cPickle as pickle
+
 import numpy as np
+import matplotlib.pyplot as plt
+
+from pyretina.evaluate import precision_recall, binary_metrics
+from pyretina.plot import plot_event_plotly
+from pyretina.retina import grid, grad_grid, set_event, set_z0, set_sigma
+from pyretina.geometry import to_spherical
+from pyretina.optimize import swarm_search_step, swarm_search, hits_prior, pseudo_rapidity_prior
+
+import matplotlib
+matplotlib.rcParams.update({'font.size': 18})
+
+def evaluate(event, sigma_from, sigma_to, C=3, plotting = False):
+  set_event(event.hits)
+  set_z0(event.z0)
+
+  steps = 3
+  eps = 5.0e-3
+
+  grid_N = int(np.pi / 3 / eps )
+
+  # Hessian matrix computation cost ~2-3 times more than response computation
+  swarm_size = min(int(1.0 * grid_N * grid_N / steps / 3 / C), event.hits.shape[0])
+
+  sigma_strategy = np.linspace(sigma_from, sigma_to, num=steps)
+  #sigma_strategy = 2.0
+  sol = swarm_search_step(event.hits, z0 = event.z0,
+                     swarm_size=swarm_size, swarm_lifetime=steps,
+                     optimizer='Newton-CG',
+                     optimizer_options = {
+                     },
+                     initial_guess=hits_prior,
+                     sigma_strategy=sigma_strategy)
+  if plotting:
+    plt.figure()
+    ts, ps, g = grid(event.hits, 2.0, event.z0, [-np.pi / 6, np.pi / 6], [-np.pi / 6, np.pi / 6], bins_theta = grid_N * 2, bins_phi = grid_N * 2)
+    plt.contourf(ts, ps, g, 40, cmap=plt.cm.Reds)
+    plt.xlabel(r"$\phi$")
+    plt.ylabel(r"$\theta$")
+    plt.colorbar()
+
+    tracks = to_spherical(event.tracks)
+    plt.scatter(tracks[:, 0], tracks[:, 1], marker = 'o', color='blue', label = 'Tracks')
+
+    plt.scatter(sol.maxima[sol.scores >= 1.5, 0], sol.maxima[sol.scores >= 1.5, 1], marker="x", label = 'Reconstructed')
+    history = sol.traces
+
+    j = to_spherical(event.hits - np.array([0.0, 0.0, event.z0]))
+    plt.scatter(j[:, 0], j[:, 1], marker="+", color="red", label = 'Hits')
+
+    for i in range(len(history)):
+      if sol.scores[i] < 1.5:
+        continue
+
+      xs = history[i][:, 0]
+      ys = history[i][:, 1]
+      plt.plot(xs, ys, color="blue", linewidth=4, alpha=0.5)
+
+    plt.legend()
+    plt.title('Optimization traces')
+    plt.show()
+
+  return binary_metrics(sol.maxima[sol.scores >= 1.5], event, max_angle=eps)
 
 if __name__ == "__main__":
-  bins = 100
+  import os
 
-  theta_limits = [0.0, 0.025]
-  theta_step = (theta_limits[1] - theta_limits[0]) / bins
+  files = [ item for item in os.listdir('./data/') if item.endswith('.pickled') ]
+  per_file = 10
+  N = np.zeros(shape=(len(files), per_file))
+  recall = np.zeros(shape=(len(files), per_file))
+  precision = np.zeros(shape=(len(files), per_file))
 
-  phi_limits = [-0.025, 0.025]
-  phi_step = (phi_limits[1] - phi_limits[0]) / bins
+  for fi, f in enumerate(files):
+    print f
+    input_path = './data/' + f
+    with open(input_path, "r") as g:
+      events = pickle.load(g)
 
-  generation_params = {
-    "n_particles": 100,
-    "detector_layers": np.arange(0, 20) + 5,
+    for i in xrange(per_file):
+      event = events[i]
 
-    "theta_limits": [theta_limits[0] + 2 * theta_step, theta_limits[1] - 2 * theta_step],
-    "phi_limits": [phi_limits[0] + 2 * phi_step, phi_limits[1] - 2 * phi_step],
+      res = evaluate(event, sigma_from=0.3, sigma_to=0.05, C = 10, plotting=False)[0]
 
-    "trace_probability": 0.75,
-    "trace_noise": 0.025,
-    "detector_noise_rate": 100.0,
+      N[fi, i] = event.tracks.shape[0]
+      precision[fi, i] = res['precision']
+      recall[fi, i] = res['recall']
 
-    "sigma": 0.01,
+    print 'N:', np.mean(N[fi, :]), 'precision:', np.mean(precision[fi, :]), 'recall:', np.mean(recall[fi, :])
 
-    "theta_bins": bins,
-    "phi_bins": bins
-  }
+  np.save('precisions', precision)
+  np.save('N', N)
+  np.save('recalls', recall)
 
-  load_params = {
-    'sigma' : 0.5,
-    "theta_limits": [-np.pi / 8, np.pi / 8],
-    "theta_bins": 250,
-    "phi_limits": [-np.pi / 8, np.pi / 8],
-    "phi_bins": 250
-  }
 
-  experiments = 1
-  from pyretina.optimize import multi_start
 
-  solver = "Newton-CG"
-  solver_options = {
-    "xtol" : 1.0e-4
-  }
-
-  from pyretina.plot import *
-  from pyretina.evaluate import *
-  from pyretina.io import simulation
-  from pyretina.io import from_csv
-
-  precision = np.zeros(shape=experiments)
-  recall = np.zeros(shape=experiments)
-
-  precision_grid = np.zeros(shape=experiments)
-  recall_grid = np.zeros(shape=experiments)
-
-  for i in range(experiments):
-    #re = from_csv.load_dataset("data/MC/00163875_0143139193",
-    #                           **load_params)
-
-    re = simulation.linear(**generation_params)
-    print "Starting multistart"
-    print re.tracks
-
-    predicted, traces = multi_start(re, max_evaluations=1000, method = solver, solver_options = solver_options)
-
-    plot_retina_results(predicted, re, 1.0e-2,
-                        search_traces=traces, against='grid_search').savefig("events_img/multistart_%d.png" % i)
-
-    bm = binary_metrics(predicted, re, against='true')[0]
-    precision[i] = bm['precision']
-    recall[i] = bm['recall']
-
-    predicted_grid = grid_search(re)
-    plot_retina_results(predicted_grid, re, 1.0e-2,
-                        search_traces=None, against='true').savefig("events_img/grid_search_%d.png" % i, dpi=120)
-
-    bm_grid = binary_metrics(predicted_grid, re, against='true')[0]
-
-    precision_grid[i] = bm_grid['precision']
-    recall_grid[i] = bm_grid['recall']
-
-    X, Y, Z = re.get_grid()
-    print X
-    print Y
-    print Z
-
-    from mpl_toolkits.mplot3d import axes3d
-    import matplotlib.pyplot as plt
-    from matplotlib import cm
-
-    fig = plt.figure()
-    ax = fig.gca(projection='3d')
-    ax.plot_surface(X, Y, Z, rstride=8, cstride=8, alpha=0.3)
-    #cset = ax.contourf(X, Y, Z, zdir='z', offset=-100, cmap=cm.coolwarm)
-    #cset = ax.contourf(X, Y, Z, zdir='x', offset=-40, cmap=cm.coolwarm)
-    #cset = ax.contourf(X, Y, Z, zdir='y', offset=40, cmap=cm.coolwarm)
-
-    ax.set_xlabel('$\\theta$')
-    #ax.set_xlim(-40, 40)
-    ax.set_ylabel('$\\phi$')
-    #ax.set_ylim(-40, 40)
-    ax.set_zlabel('Retina response')
-    #ax.set_zlim(-100, 100)
-
-    plt.savefig("RR.png", dpi=320)
-
-    print precision[i], recall[i]
-    print precision_grid[i], recall_grid[i]
-
-  print "Precision", precision.mean(), precision.std()
-  print "Recall", recall.mean(), recall.std()
-
-  print "Precision Grid", precision_grid.mean(), precision_grid.std()
-  print "Recall Grid", recall_grid.mean(), recall_grid.std()

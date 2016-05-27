@@ -39,7 +39,7 @@ def __bin_metrics(predicted, test, max_angle = 1.0e-2):
 
 def __against(event, against = 'true'):
   if against == 'true':
-    test = event.tracks
+    test = to_spherical(event.tracks)
   elif against == 'grid_search':
     test = grid_search(event)
   else:

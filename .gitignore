@@ -71,3 +71,5 @@ target/
 *.tar.gz
 
 data/
+
+*.npy

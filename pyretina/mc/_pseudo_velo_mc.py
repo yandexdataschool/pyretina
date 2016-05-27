@@ -17,11 +17,11 @@ def gen_event(particles, pseudo_rapidity, primary_vertex):
   y = np.sin(theta) * np.cos(phi)
   x = np.sin(theta) * np.sin(phi)
 
-  z0 = primary_vertex.rvs()
-
   ns[:, 0] = x
   ns[:, 1] = y
   ns[:, 2] = z
+
+  z0 = primary_vertex.rvs()
 
   return ns, z0
 
@@ -97,8 +97,12 @@ def plot_velo(plt, velo_config, layers, z0, hits, zs, dx, dz):
 
   return plt
 
-def monte_carlo(events_number, config_path = 'config/mc.json', plot_dir = None):
-  mc = read_config(config_path)
+def monte_carlo(events_number, config = 'config/mc.json', plot_dir = None):
+  if hasattr(config, 'keys'):
+    mc = from_config(config)
+  else:
+    mc = read_config(config)
+
   velo = mc.velo
   scattering = mc.scattering
   interaction = mc.interaction
@@ -125,7 +129,7 @@ def monte_carlo(events_number, config_path = 'config/mc.json', plot_dir = None):
     noise = noise_hits(layers, detector_noise, velo.inner_radius, velo.outer_radius)
     hits = np.vstack([detected, noise])
 
-    events.append(Event(hits = hits, tracks = ns_))
+    events.append(Event(hits = hits, tracks = ns_, z0 = z0))
 
     if plot_dir is not None:
       fig, axes = plt.subplots(2, 1, figsize=(14, 18))
