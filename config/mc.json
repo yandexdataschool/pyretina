@@ -22,7 +22,7 @@
     "primary_vertex" : {
       "type" : "norm",
       "loc" : 0.0,
-      "scale" : 5.0
+      "scale" : 0.001
     }
   },
 
@@ -33,7 +33,7 @@
     "hit_noise": {
       "type" : "norm",
       "loc" : 0.0,
-      "scale" : 0.001
+      "scale" : 0.01
     },
 
     "detector_noise" : {

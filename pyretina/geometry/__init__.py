@@ -26,17 +26,18 @@ def to_spherical(ns):
   sps[:, 1] = np.arctan2(normed[:, 1], normed[:, 2])
   return sps
 
-def spherical_cos_angle(spherical_p1, spherical_p2):
-  p1 = to_cartesian(spherical_p1)
-  p2 = to_cartesian(spherical_p2)
+def spherical_cos_angle(p1, p2):
+  return np.sum(p1 * p2)
 
-  if len(p1.shape) == 1:
-    return np.sum(p1 * p2)
-  else:
-    return np.sum(p1 * p2, axis=1)
-
-def spherical_angle(spherical_p1, spherical_p2):
-  cos = spherical_cos_angle(spherical_p1, spherical_p2)
+def spherical_angle(p1, p2):
+  cos = spherical_cos_angle(p1, p2)
   cos = np.max([-1.0, cos])
   cos = np.min([1.0, cos])
   return np.arccos(cos)
+
+def to_reference_plane(event, reference_z = 700.0):
+  z0 = event.z0
+  ns = event.tracks
+
+  return ns[:, :2] * (reference_z - z0) / (ns[:, 2][:, None] - z0)
+

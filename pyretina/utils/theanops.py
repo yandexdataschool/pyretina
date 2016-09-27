@@ -39,8 +39,34 @@ def log_sum_exp(A, axis=None):
   return B.dimshuffle([i for i in range(B.ndim) if
                        i % B.ndim not in axis])
 
+def derivatives(cost, wrts, stack = False):
+  grads = [ T.grad(cost, wrt) for wrt in wrts ]
+  hessian = [[ T.grad(gr, wrt) for wrt in wrts ] for gr in grads]
+
+  if stack:
+    grads = T.concatenate(grads)
+    hessian = T.stack([T.stack(h_row) for h_row in hessian], axis=1)
+    return grads, hessian
+  else:
+    return grads, hessian
+
+
 def log1p_exp(a):
     return T.log1p(T.exp(-a)) + a
+
+def jacobian_trace(cost, wrts):
+  grads = []
+
+  for wrt in wrts:
+    dC_dwrt = theano.map(
+      lambda i, r, w: T.grad(r[i], w[i]),
+      sequences=T.arange(cost.shape[0]),
+      non_sequences=[cost, wrt]
+    )
+
+    grads.append(dC_dwrt)
+
+  return grads
 
 def scalar_hessian(cost, variables):
   hessians = []
@@ -59,3 +85,13 @@ def scalar_hessian(cost, variables):
   ] for hrow in hessian_fs])
 
   return hessians, hessian_f
+
+def __hessian(cost, variables):
+  hessians = []
+  for input1 in variables:
+    d_cost_d_input1 = T.grad(cost, input1)
+    hessians.append([
+      T.grad(d_cost_d_input1, input2) for input2 in variables
+    ])
+
+  return hessians

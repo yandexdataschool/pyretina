@@ -1,2 +1,2 @@
-from _pseudo_velo_mc import monte_carlo
-from _pseudo_velo_mc import Event
+from pseudo_velo_mc import monte_carlo, mc_stream
+from config import Event

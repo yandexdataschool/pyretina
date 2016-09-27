@@ -1,14 +1,3 @@
-from _retina import grid
-from _retina import grad_grid
+from retina.reference_plane import ReferencePlaneRetinaModel
 
-from _retina_response import set_sigma
-from _retina_response import set_event
-from _retina_response import set_z0
-
-from _retina_response import linear_retina_response
-from _retina_response import linear_retina_response_jac
-from _retina_response import linear_retina_response_hess
-
-from _retina_response import neg_linear_retina_response
-from _retina_response import neg_linear_retina_response_jac
-from _retina_response import neg_linear_retina_response_hess
+from retina_model import RetinaModel, RetinaModel3D

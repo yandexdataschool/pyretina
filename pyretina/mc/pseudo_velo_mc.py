@@ -1,4 +1,4 @@
-from _config import *
+from config import *
 
 import numpy as np
 
@@ -97,7 +97,7 @@ def plot_velo(plt, velo_config, layers, z0, hits, zs, dx, dz):
 
   return plt
 
-def monte_carlo(events_number, config = 'config/mc.json', plot_dir = None):
+def monte_carlo(events_number, config = 'config/mc.json', plot_dir = None, plot_each=100):
   if hasattr(config, 'keys'):
     mc = from_config(config)
   else:
@@ -131,20 +131,20 @@ def monte_carlo(events_number, config = 'config/mc.json', plot_dir = None):
 
     events.append(Event(hits = hits, tracks = ns_, z0 = z0))
 
-    if plot_dir is not None:
+    if plot_dir is not None and event_id % plot_each == 0:
       fig, axes = plt.subplots(2, 1, figsize=(14, 18))
 
       plot_velo(axes[0], velo, layers, z0, hits[:, 0], hits[:, 2], ns_[:, 0], ns_[:, 2])
 
       axes[0].set_xlim([0, velo.length])
-      axes[0].set_ylim([-1.5 * velo.outer_radius, 1.5 * velo.outer_radius])
+      axes[0].set_ylim([-1.1 * velo.outer_radius, 1.1 * velo.outer_radius])
       axes[0].set_xlabel("Z")
       axes[0].set_ylabel("X")
 
       plot_velo(axes[1], velo, layers, z0, hits[:, 1], hits[:, 2], ns_[:, 1], ns_[:, 2])
 
       axes[1].set_xlim([0, velo.length])
-      axes[1].set_ylim([-1.5 * velo.outer_radius, 1.5 * velo.outer_radius])
+      axes[1].set_ylim([-1.1 * velo.outer_radius, 1.1 * velo.outer_radius])
       axes[1].set_xlabel("Z")
       axes[1].set_ylabel("Y")
 
@@ -152,9 +152,41 @@ def monte_carlo(events_number, config = 'config/mc.json', plot_dir = None):
 
       import os.path as osp
       plt.savefig(osp.join(plot_dir, "velo_event_%d.png" % event_id))
+      plt.close()
 
   return events
 
+def mc_stream(config = 'config/mc.json', n_events=1000):
+  if hasattr(config, 'keys'):
+    mc = from_config(config)
+  else:
+    mc = read_config(config)
 
+  velo = mc.velo
+  scattering = mc.scattering
+  interaction = mc.interaction
+
+  particles = get_distribution(scattering.number_of_particles)
+  pseudo_rapidity = get_distribution(scattering.pseudo_rapidity)
+  primary_vertex = get_distribution(scattering.primary_vertex)
+
+  hit_noise = get_distribution(interaction.hit_noise)
+  detector_noise = get_distribution(interaction.detector_noise)
+
+  layers = np.linspace(0.0, velo.length, num = velo.layers + 1)[1:]
+
+  for _ in xrange(n_events):
+    ns, z0 = gen_event(particles, pseudo_rapidity, primary_vertex)
+
+    detected, ns_ = intersect(ns, z0, layers,
+                              velo.inner_radius, velo.outer_radius,
+                              interaction.reaction_probability,
+                              min_hits = interaction.min_hits_to_trace)
+
+    detected[:, 0:2] += hit_noise.rvs(size=(detected.shape[0], 2))
+    noise = noise_hits(layers, detector_noise, velo.inner_radius, velo.outer_radius)
+    hits = np.vstack([detected, noise])
+
+    yield Event(hits = hits, tracks = ns_, z0 = z0)
 
 
