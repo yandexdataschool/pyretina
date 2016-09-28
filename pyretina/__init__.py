@@ -8,3 +8,4 @@ from optimize import GD
 from tracking import Tracker, RetinaTracker
 from tracking import GridSearchTracker
 from tracking import GDTracker
+from tracking import NNTracker

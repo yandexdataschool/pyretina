@@ -2,7 +2,6 @@ from tracker import RetinaTracker
 from optimize import GD
 from retina import ReferencePlaneRetinaModel
 
-
 class GDTracker(RetinaTracker):
   def __init__(self, seeder_model, n_seeds, n_steps,
                alpha_regime, sigma_regime,

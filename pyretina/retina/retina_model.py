@@ -72,6 +72,12 @@ class RetinaModel(object):
   def get_all_model_params(self):
     return self._model_params
 
+  def alloc_event_variables(self):
+    return [
+      theano.shared(np.ndarray(shape=(0,), dtype='float32'), name=name)
+      for name in self._event_feature_names
+    ]
+
   def alloc_model_params(self):
     return [
       T.fvector(name=name)
