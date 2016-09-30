@@ -39,5 +39,9 @@ def to_reference_plane(event, reference_z = 700.0):
   z0 = event.z0
   ns = event.tracks
 
-  return ns[:, :2] * (reference_z - z0) / (ns[:, 2][:, None] - z0)
+  x = ns[:, 0] * (reference_z - z0) / ns[:, 2]
+  y = ns[:, 1] * (reference_z - z0) / ns[:, 2]
+  primary_vertex = np.ones(shape=x.shape[0], dtype='float32') * z0
+
+  return x, y, primary_vertex
 

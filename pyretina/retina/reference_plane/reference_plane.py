@@ -4,6 +4,7 @@ import theano
 import theano.tensor as T
 
 from ..retina_model import RetinaModel3D
+from geometry import to_reference_plane
 
 class ReferencePlaneRetinaModel(RetinaModel3D):
   def __init__(self, reference_z = 1.0):
@@ -11,6 +12,9 @@ class ReferencePlaneRetinaModel(RetinaModel3D):
     model_params_names = ['model_x', 'model_y', 'primary_vertex', 'sigma']
 
     super(ReferencePlaneRetinaModel, self).__init__(model_params_names=model_params_names)
+
+  def tracks_to_model_params(self, event):
+    return to_reference_plane(event)
 
   def distance_for(self, event_x, event_y, event_z,
                    model_x, model_y, primary_vertex, sigma):
@@ -100,3 +104,23 @@ class ReferencePlaneRetinaModel(RetinaModel3D):
     )
 
     return r, (dr_dmx, dr_dmy, dr_dmz, dr_dsigma)
+
+  def parameter_response(self, coefs,
+                         track_x, track_y, track_primary_vertex,
+                         model_x, model_y, model_primary_vertex,
+                         sigma):
+    if coefs is None:
+      coefs = [1, 1, 1]
+
+    d_sq = reduce(lambda a, b: a + b, [
+      c * (tp[:, None] - mp[None, :]) ** 2
+      for tp, mp, c in zip(
+        [track_x, track_y, track_primary_vertex],
+        [model_x, model_y, model_primary_vertex],
+        coefs
+      )
+    ])
+
+    r = T.mean(T.exp(-d_sq / sigma))
+
+    return r

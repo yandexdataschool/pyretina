@@ -72,66 +72,65 @@ def main():
 
   print np.mean(tracker.fit(train_events, 1.0, 1.0e-3))
 
-  for i in range(100):
-    event = event_stream.next()
+  event = event_stream.next()
 
-    px, py, pz, _ = tracker.predict(event)
-    traces = np.array(tracker.optimizer.traces)
+  px, py, pz, _ = tracker.predict(event)
+  traces = np.array(tracker.optimizer.traces)
 
-    grid_opt.fill_grid_value(-2, event.z0)
-    grid_opt.maxima()
-    r = grid_opt.response_grid
+  grid_opt.fill_grid_value(-2, event.z0)
+  grid_opt.maxima()
+  r = grid_opt.response_grid
 
-    md, matrix, pmapping, tmapping = binary_metrics(
-      px, py, pz, rz, event, max_angle=5.0e-3, max_primary=5.0
-    )
+  md, matrix, pmapping, tmapping = binary_metrics(
+    px, py, pz, rz, event, max_angle=5.0e-3, max_primary=5.0
+  )
 
-    sx, sy, _, _ = tracker.optimizer.seeds
-    smd = binary_metrics(
-      sx, sy, np.zeros_like(sx), rz, event, max_angle=5.0e-3, max_primary=5.0
-    )[0]
+  sx, sy, _, _ = tracker.optimizer.seeds
+  smd = binary_metrics(
+    sx, sy, np.zeros_like(sx), rz, event, max_angle=5.0e-3, max_primary=5.0
+  )[0]
 
-    ms.append(md)
-    seeder_ms.append(smd)
+  ms.append(md)
+  seeder_ms.append(smd)
 
-    print 'mean recall:', np.mean([ md['recall'] for md in ms ])
-    print 'mean recall:', np.mean([md['recall'] for md in seeder_ms])
+  print 'mean recall:', np.mean([ md['recall'] for md in ms ])
+  print 'mean recall for seeds:', np.mean([md['recall'] for md in seeder_ms])
 
-    print md
+  print md
 
-    tps = tmapping > 0
-    tps_ = pmapping > 0
+  tps = tmapping > 0
+  tps_ = pmapping > 0
 
-    fns = tmapping == 0
+  fns = tmapping == 0
 
-    fps = pmapping == 0
+  fps = pmapping == 0
 
-    plt.figure(figsize=(10, 8))
-    plt.contourf(
-      mxs, mys, r[:, :, 0, 0].T,
-      cmap=plt.cm.viridis, levels=np.linspace(0.0, np.max(r), num=50)
-    )
-    plt.colorbar()
-    e = to_reference_plane(event, reference_z=rz)
+  plt.figure(figsize=(10, 8))
+  plt.contourf(
+    mxs, mys, r[:, :, 0, 0].T,
+    cmap=plt.cm.viridis, levels=np.linspace(0.0, max(np.max(r), 1.0), num=50)
+  )
+  plt.colorbar()
+  ex, ey, ez = to_reference_plane(event, reference_z=rz)
 
-    plt.scatter(e[tps, 0], e[tps, 1], marker='x', color='green', label='recovered (%d)' % md['tp'])
-    plt.scatter(e[fns, 0], e[fns, 1], marker='x', color='red', label='missed (%d)' % md['fn'])
-    plt.scatter(px[tps_], py[tps_], marker='o', color='green', label='hit (%d)' % md['tp'])
-    plt.scatter(px[fps], py[fps], marker='o', color='red', label='ghost tracks (%d)' % md['fp'])
+  plt.scatter(ex[tps], ey[tps], marker='x', color='green', label='recovered (%d)' % md['tp'])
+  plt.scatter(ex[fns], ey[fns], marker='x', color='red', label='missed (%d)' % md['fn'])
+  plt.scatter(px[tps_], py[tps_], marker='o', color='green', label='hit (%d)' % md['tp'])
+  plt.scatter(px[fps], py[fps], marker='o', color='red', label='ghost tracks (%d)' % md['fp'])
 
-    for trace_i in xrange(traces.shape[-1]):
-      plt.plot(traces[:, 0, trace_i], traces[:, 1, trace_i], color='blue')
+  for trace_i in xrange(traces.shape[-1]):
+    plt.plot(traces[:, 0, trace_i], traces[:, 1, trace_i], color='blue')
 
-    plt.scatter(sx, sy, marker='o', color='blue', label='seeds (%d)' % n_seeds)
+  plt.scatter(sx, sy, marker='o', color='blue', label='seeds (%d)' % n_seeds)
 
-    iss, jss = np.where(matrix)
+  iss, jss = np.where(matrix)
 
-    for i, j in zip(iss, jss):
-      plt.plot([e[j, 0], px[i]], [e[j, 1], py[i]], '--', color='blue')
+  for i, j in zip(iss, jss):
+    plt.plot([ex[j], px[i]], [ey[j], py[i]], '--', color='blue')
 
-    plt.legend()
+  plt.legend()
 
-    plt.show()
+  plt.show()
 
 if __name__ == '__main__':
   main()

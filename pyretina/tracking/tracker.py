@@ -24,7 +24,7 @@ class RetinaTracker(Tracker):
   def fit_stream(self, event_stream):
     pass
 
-  def fit(self, events):
+  def fit(self, *args, **kwargs):
     raise NotImplementedError()
 
   def predict(self, event):

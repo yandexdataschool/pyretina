@@ -7,7 +7,8 @@ import theano.tensor as T
 from lasagne import layers, nonlinearities, regularization, updates
 
 class GradBased(Optimizer):
-  def build_nn(self, n_model, n_units=100):
+  @classmethod
+  def build_nn(cls, n_model, n_units=100):
     ### current params + response + grads
     in_l = layers.InputLayer(shape=(None, 2 * n_model + 1, ), name='input_params')
 
@@ -24,8 +25,8 @@ class GradBased(Optimizer):
     )
 
     reg = \
-      regularization.regularize_layer_params(dense1, regularization.l2) + \
-      0.1 * regularization.regularize_layer_params(out_l, regularization.l2)
+      regularization.regularize_layer_params(dense1, regularization.l1) + \
+      0.1 * regularization.regularize_layer_params(out_l, regularization.l1)
 
     return in_l, out_l, reg
 
@@ -36,6 +37,7 @@ class GradBased(Optimizer):
   def __init__(self, retina_model, seeder_model,
                n_seeds, n_steps, n_units = 100,
                normalization_coefs=None,
+               loss_coefs=None,
                alpha = 1.0,
                threshold = 1.0):
     self.seeder_model = seeder_model
@@ -43,6 +45,8 @@ class GradBased(Optimizer):
     self.n_steps = n_steps
 
     self.threshold = threshold
+
+    self.retina = retina_model
 
     event_shareds = retina_model.get_event_variables()
 
@@ -57,9 +61,6 @@ class GradBased(Optimizer):
     self.inputs = retina_model.alloc_model_params()
 
     self.input_layer, self.out_layer, self.reg = self.build_nn(retina_model.model_nparams, n_units=n_units)
-
-    # self.c_reg_grads = [ T.fscalar('C_reg_%d' % i) for i in range(retina_model.model_nparams - 1) ]
-    # self.c_reg_sigma = T.fscalar('C_reg_sigma')
 
     print 'Linking to Retina Model'
 
@@ -96,17 +97,34 @@ class GradBased(Optimizer):
       update = [
         var + upd * alpha
         for var, upd in zip(prev[:-1], track_param_updates)
-      ] + [sigma_update ** 2 + 1.0e-3]
+      ] + [
+        T.exp(-sigma_update)
+      ]
+
+      for var, upd, new in zip(prev[:-1], track_param_updates, update):
+        print '  -', new, '=', var, '+ %.2e' % alpha, upd
 
       iterations.append(update)
       responses.append(r)
 
     prediction = iterations[-1]
 
-    sigma_train = T.fvector('sigma_train')
-    train_response = retina_model.response_for(*event_shareds + prediction[:-1] + [sigma_train])
+    sigma_train = T.fscalar('sigma_train')
 
-    loss = -T.sum(train_response)
+    ### Except sigma
+    self.true_parameters_shareds = [
+      theano.shared(np.ndarray(shape=(0, ), dtype='float32'), name=name)
+      for name in retina_model.model_params_names[:-1]
+    ]
+
+    ### predictions without sigma
+    print 'Constucting loss:'
+    print '  - Loss coefs:', loss_coefs
+    print '  - True params shared:', self.true_parameters_shareds
+    print '  - Predictions:', prediction[:-1]
+    print '  - Sigma:', sigma_train
+
+    loss = retina_model.parameter_response(loss_coefs, *self.true_parameters_shareds + prediction[:-1] + [sigma_train])
 
     params = layers.get_all_params(self.out_layer)
     learning_rate = T.fscalar('learning rate')
@@ -128,10 +146,19 @@ class GradBased(Optimizer):
     self.traces = None
     self.seeds = None
 
-  def train(self, sigma_train, learning_rate):
+  def train(self, event, sigma_train, learning_rate):
+    self.retina.set_event(event.hits)
+    true_params = self.retina.tracks_to_model_params(event)
+
+    for shared, p in zip(self.true_parameters_shareds, true_params):
+      shared.set_value(p.astype('float32'))
+
     self.seeds = self.seeder(self.n_seeds)
-    sigma = np.ones(shape=self.seeds[-1].shape, dtype='float32') * sigma_train
+
+    sigma = np.array(sigma_train, dtype='float32')
+
     learning_rate = np.array(learning_rate, dtype='float32')
+
     return self._train(*self.seeds + [sigma, learning_rate])
 
 

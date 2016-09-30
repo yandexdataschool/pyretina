@@ -21,9 +21,7 @@ class NNTracker(RetinaTracker):
   def fit(self, events, sigma_train, learning_rate):
     loss = []
     for event in events:
-      self.set_event(event.hits)
-
-      l = self.optimizer.train(sigma_train, learning_rate)
+      l = self.optimizer.train(event, sigma_train, learning_rate)
       loss.append(l)
 
     return loss

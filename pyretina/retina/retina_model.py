@@ -7,8 +7,8 @@ import theano.tensor as T
 
 class RetinaModel(object):
   def __init__(self, model_params_names, event_feature_names):
-    self._event_feature_names = event_feature_names
-    self._model_params_names = model_params_names
+    self.event_feature_names = event_feature_names
+    self.model_params_names = model_params_names
 
     for name in event_feature_names:
       shared = theano.shared(np.ndarray(shape=(0, ), dtype='float32'), name=name)
@@ -31,6 +31,9 @@ class RetinaModel(object):
     r, grads = self.grad_for(*self._event_shareds + self._model_params)
 
     self._response = theano.function(self._model_params, r)
+
+  def tracks_to_model_params(self, event):
+    raise NotImplementedError('This is an interface declaration.')
 
   def set_event(self, event):
     assert(event.shape[1] == self.event_ndim)
@@ -60,7 +63,7 @@ class RetinaModel(object):
 
   @property
   def event_ndim(self):
-    return len(self._event_feature_names)
+    return len(self.event_feature_names)
 
   @property
   def model_nparams(self):
@@ -75,13 +78,13 @@ class RetinaModel(object):
   def alloc_event_variables(self):
     return [
       theano.shared(np.ndarray(shape=(0,), dtype='float32'), name=name)
-      for name in self._event_feature_names
+      for name in self.event_feature_names
     ]
 
   def alloc_model_params(self):
     return [
       T.fvector(name=name)
-      for name in self._model_params_names
+      for name in self.model_params_names
     ]
 
   def distance_for(self, *args, **kwargs):
@@ -129,6 +132,9 @@ class RetinaModel(object):
     ]
 
     return r, grads, fake_hessian
+
+  def parameter_response(self, *args, **kwargs):
+    raise NotImplementedError('This is an interface declaration.')
 
 class RetinaModel3D(RetinaModel):
   def __init__(self, model_params_names):
