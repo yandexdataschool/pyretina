@@ -1,6 +1,6 @@
 from tracker import RetinaTracker
-from optimize import GradBased
-from retina import ReferencePlaneRetinaModel
+from pyretina.optimize import GradBased
+from pyretina.retina import ReferencePlaneRetinaModel
 
 class NNTracker(RetinaTracker):
   def __init__(self, seeder_model, n_seeds, n_steps,
