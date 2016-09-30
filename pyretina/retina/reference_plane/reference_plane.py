@@ -4,7 +4,7 @@ import theano
 import theano.tensor as T
 
 from ..retina_model import RetinaModel3D
-from geometry import to_reference_plane
+from pyretina.geometry import to_reference_plane
 
 class ReferencePlaneRetinaModel(RetinaModel3D):
   def __init__(self, reference_z = 1.0):

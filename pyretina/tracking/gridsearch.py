@@ -1,5 +1,5 @@
 from tracker import RetinaTracker
-from optimize import GridOptimizer
+from pyretina.optimize import GridOptimizer
 from retina import ReferencePlaneRetinaModel
 
 class GridSearchTracker(RetinaTracker):
