@@ -121,6 +121,6 @@ class ReferencePlaneRetinaModel(RetinaModel3D):
       )
     ])
 
-    r = T.mean(T.exp(-d_sq / sigma))
+    r = T.sum(T.exp(-d_sq / sigma)) / model_x.shape[0]
 
     return r
