@@ -124,7 +124,7 @@ class GradBased(Optimizer):
     print '  - Predictions:', prediction[:-1]
     print '  - Sigma:', sigma_train
 
-    pure_loss = -retina_model.parameter_response(
+    pure_loss = 1.0 - retina_model.parameter_response(
       loss_coefs,
       *self.true_parameters_shareds + prediction[:-1] + [sigma_train]
     )
