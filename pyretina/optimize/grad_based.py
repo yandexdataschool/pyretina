@@ -129,6 +129,11 @@ class GradBased(Optimizer):
       *self.true_parameters_shareds + prediction[:-1] + [sigma_train]
     )
 
+    initial_loss = 1.0 - retina_model.parameter_response(
+      loss_coefs,
+      *self.true_parameters_shareds + self.inputs[:-1] + [sigma_train]
+    )
+
     reg_c = T.fscalar('reg_c')
     loss = pure_loss + reg_c * self.reg
 
@@ -139,7 +144,7 @@ class GradBased(Optimizer):
 
     self._train = theano.function(
       self.inputs + [sigma_train, learning_rate, reg_c],
-      [pure_loss, self.reg, loss],
+      [pure_loss, self.reg, loss, initial_loss],
       updates=net_updates
     )
 
