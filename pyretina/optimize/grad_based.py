@@ -124,27 +124,33 @@ class GradBased(Optimizer):
     print '  - Predictions:', prediction[:-1]
     print '  - Sigma:', sigma_train
 
-    pure_loss = 1.0 - retina_model.parameter_response(
+    pure_response, rmse = retina_model.parameter_response(
       loss_coefs,
       *self.true_parameters_shareds + prediction[:-1] + [sigma_train]
     )
 
-    initial_loss = 1.0 - retina_model.parameter_response(
+    pure_loss = 1.0 - pure_response
+
+    initial_response, initial_rmse = retina_model.parameter_response(
       loss_coefs,
       *self.true_parameters_shareds + self.inputs[:-1] + [sigma_train]
     )
 
+    initial_loss = 1.0 - initial_response
+
     reg_c = T.fscalar('reg_c')
-    loss = pure_loss + reg_c * self.reg
+    alpha_rmse = T.fscalar('reg_c')
+
+    loss = (1.0 - alpha_rmse) * pure_loss + alpha_rmse * rmse + reg_c * self.reg
 
     params = layers.get_all_params(self.out_layer)
     learning_rate = T.fscalar('learning rate')
 
-    net_updates = updates.rmsprop(loss, params, learning_rate=learning_rate)
+    net_updates = updates.adadelta(loss, params, learning_rate=learning_rate)
 
     self._train = theano.function(
-      self.inputs + [sigma_train, learning_rate, reg_c],
-      [pure_loss, self.reg, loss, initial_loss],
+      self.inputs + [sigma_train, learning_rate, reg_c, alpha_rmse],
+      [pure_loss, rmse, self.reg, loss, initial_loss, initial_rmse],
       updates=net_updates
     )
 
@@ -162,7 +168,7 @@ class GradBased(Optimizer):
     self.traces = None
     self.seeds = None
 
-  def train(self, event, sigma_train, learning_rate, reg_c=1.0e-3):
+  def train(self, event, sigma_train, learning_rate, reg_c=1.0e-3, alpha_rmse=0.1):
     self.retina.set_event(event.hits)
     true_params = self.retina.tracks_to_model_params(event)
 
@@ -174,8 +180,9 @@ class GradBased(Optimizer):
     sigma = np.array(sigma_train, dtype='float32')
     learning_rate = np.array(learning_rate, dtype='float32')
     reg_c = np.array(reg_c, dtype='float32')
+    alpha_rmse = np.array(alpha_rmse, dtype='float32')
 
-    return self._train(*self.seeds + [sigma, learning_rate, reg_c])
+    return self._train(*self.seeds + [sigma, learning_rate, reg_c, alpha_rmse])
 
   def maxima(self):
     self.seeds = self.seeder(self.n_seeds)

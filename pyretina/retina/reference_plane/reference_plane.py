@@ -121,6 +121,7 @@ class ReferencePlaneRetinaModel(RetinaModel3D):
       )
     ])
 
+    rmse = T.sqrt(T.mean(T.min(d_sq, axis=0)))
     r = T.sum(T.exp(-d_sq / sigma)) / model_x.shape[0]
 
-    return r
+    return r, rmse
