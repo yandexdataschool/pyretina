@@ -15,7 +15,7 @@ class GradBased(Optimizer):
     dense1 = layers.DenseLayer(
       in_l,
       num_units=n_units,
-      nonlinearity=theano.tensor.nnet.softplus
+      nonlinearity=nonlinearities.tanh
     )
 
     out_l = layers.DenseLayer(
@@ -25,8 +25,8 @@ class GradBased(Optimizer):
     )
 
     reg = \
-      regularization.regularize_layer_params(dense1, regularization.l1) + \
-      0.1 * regularization.regularize_layer_params(out_l, regularization.l1)
+      regularization.regularize_layer_params(dense1, regularization.l2) + \
+      regularization.regularize_layer_params(out_l, regularization.l2)
 
     return in_l, out_l, reg
 
@@ -124,15 +124,26 @@ class GradBased(Optimizer):
     print '  - Predictions:', prediction[:-1]
     print '  - Sigma:', sigma_train
 
-    loss = -retina_model.parameter_response(loss_coefs, *self.true_parameters_shareds + prediction[:-1] + [sigma_train])
+    pure_loss = -retina_model.parameter_response(
+      loss_coefs,
+      *self.true_parameters_shareds + prediction[:-1] + [sigma_train]
+    )
+
+    reg_c = T.fscalar('reg_c')
+    loss = pure_loss + reg_c * self.reg
 
     params = layers.get_all_params(self.out_layer)
     learning_rate = T.fscalar('learning rate')
 
-    net_updates = updates.adadelta(loss, params, learning_rate=learning_rate)
+    net_updates = updates.rmsprop(loss, params, learning_rate=learning_rate)
 
-    self._train = theano.function(self.inputs + [sigma_train, learning_rate], loss, updates=net_updates)
-    self._loss = theano.function(self.inputs + [sigma_train], loss)
+    self._train = theano.function(
+      self.inputs + [sigma_train, learning_rate, reg_c],
+      [pure_loss, self.reg, loss],
+      updates=net_updates
+    )
+
+    self._loss = theano.function(self.inputs + [sigma_train], pure_loss)
 
     outputs = [
       v for it in iterations for v in it
@@ -146,7 +157,7 @@ class GradBased(Optimizer):
     self.traces = None
     self.seeds = None
 
-  def train(self, event, sigma_train, learning_rate):
+  def train(self, event, sigma_train, learning_rate, reg_c=1.0e-3):
     self.retina.set_event(event.hits)
     true_params = self.retina.tracks_to_model_params(event)
 
@@ -156,11 +167,10 @@ class GradBased(Optimizer):
     self.seeds = self.seeder(self.n_seeds)
 
     sigma = np.array(sigma_train, dtype='float32')
-
     learning_rate = np.array(learning_rate, dtype='float32')
+    reg_c = np.array(reg_c, dtype='float32')
 
-    return self._train(*self.seeds + [sigma, learning_rate])
-
+    return self._train(*self.seeds + [sigma, learning_rate, reg_c])
 
   def maxima(self):
     self.seeds = self.seeder(self.n_seeds)

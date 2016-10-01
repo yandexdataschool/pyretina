@@ -18,10 +18,10 @@ class NNTracker(RetinaTracker):
 
     super(NNTracker, self).__init__(retina_model, optimizer)
 
-  def fit(self, events, sigma_train, learning_rate):
+  def fit(self, events, sigma_train, learning_rate, reg_c = 1.0e-3):
     loss = []
     for event in events:
-      l = self.optimizer.train(event, sigma_train, learning_rate)
+      l = self.optimizer.train(event, sigma_train, learning_rate, reg_c)
       loss.append(l)
 
     return loss

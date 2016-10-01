@@ -70,7 +70,7 @@ def main():
 
   grid_opt = GridOptimizer(tracker.retina_model, [mxs, mys, mzs, sigmas])
 
-  print np.mean(tracker.fit(train_events, 1.0, 1.0e-3))
+  print tracker.fit(train_events, 1.0, 1.0e-3)
 
   event = event_stream.next()
 
